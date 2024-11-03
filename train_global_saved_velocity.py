@@ -139,7 +139,7 @@ for epoch in range(args.niters):
         loss = loss + l2_lambda * l2_norm
         loss.backward()
         optimizer.step()    
-        print("Loss for batch is ",loss.item())
+        # print("Loss for batch is ",loss.item())
         if torch.isnan(loss) : 
             print("Quitting due to Nan loss")
             quit()
@@ -159,7 +159,7 @@ for epoch in range(args.niters):
         if torch.isnan(loss) : 
             print("Quitting due to Nan loss")
             quit()
-        print("Val Loss for batch is ",loss.item())
+        # print("Val Loss for batch is ",loss.item())
         val_loss = val_loss + loss.item()
 
     print("|Iter ",epoch," | Total Val Loss ", val_loss/len(Val_loader),"|")
