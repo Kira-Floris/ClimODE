@@ -102,7 +102,7 @@ Lead_CRPS = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[] for
 
 for entry,(time_steps,batch) in enumerate(zip(time_loader,Test_loader)):
         data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
-        past_sample = vel_test[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
+        past_sample = vel_test.view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
         model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
         t = time_steps.float().to(device).flatten()
         mean_pred,std_pred, mean_wo_bias = model(t,data)
