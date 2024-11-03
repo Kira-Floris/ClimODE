@@ -110,6 +110,7 @@ fit_velocity(time_idx,time_loader,Final_val_data,Val_loader,torch.device('cpu'),
 fit_velocity(time_idx,time_loader,Final_test_data,Test_loader,torch.device('cpu'),2,paths_to_data,args.scale,H,W,types='test_10year_2day_mm',vel_model=Optim_velocity,kernel=kernel,lat=lat,lon=lon)
 
 vel_train,vel_val = load_velocity(['train_10year_2day_mm','val_10year_2day_mm'])
+print(vel_train[0].shape)
 print("############################ Velocity loaded, Model starts to train #########################")
 print(model)
 print("####################### Total Parameters",param ,"################################")
@@ -128,6 +129,7 @@ for epoch in range(args.niters):
     for entry,(time_steps,batch) in enumerate(zip(time_loader,Train_loader)):
         optimizer.zero_grad()
         data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
+        # print(vel_train[entry].shape)
         past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
         model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
         t = time_steps.float().to(device).flatten()
@@ -144,7 +146,7 @@ for epoch in range(args.niters):
             print("Quitting due to Nan loss")
             quit()
         total_train_loss = total_train_loss + loss.item()
-
+        
     lr_val = scheduler.get_last_lr()[0]
     scheduler.step()
     print("|Iter ",epoch," | Total Train Loss ", total_train_loss/len(Train_loader),"|")

@@ -1,0 +1,15 @@
+tqdm
+torch
+git+https://github.com/patrick-kidger/torchcubicspline.git
+torchdiffeq
+torch-scatter 
+torch-sparse 
+torch-cluster 
+torch-spline-conv 
+properscoring
+pandas
+matplotlib
+xarray
+netcdf4 
+h5netcdf
+dask

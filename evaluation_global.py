@@ -21,6 +21,9 @@ import torch
 import torch.optim as optim
 import random
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
 SOLVERS = ["dopri8","dopri5", "bdf", "rk4", "midpoint", 'adams', 'explicit_adams', 'fixed_adams',"adaptive_heun"]
 parser = argparse.ArgumentParser('ClimODE')
 
@@ -85,7 +88,7 @@ Final_train_data = 0
 Final_val_data = 0
 
 # vel_test= torch.from_numpy(np.load('### Test velocity here'))
-vel_test = load_velocity(["test_10year_2day_mm"])
+vel_test, vel_val = load_velocity(["test_10year_2day_mm", "test_10year_2day_mm"])
 # print("VELOCITY TESTING:\n",vel_test[0])
 
 model = torch.load(str(cwd) + "/checkpoints/ClimODE_global.pt",map_location=torch.device('cpu')).to(device)
@@ -100,9 +103,41 @@ Lead_RMSD_arr = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[]
 Lead_ACC = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[] for _ in range(7)],"u10":[[] for _ in range(7)],"v10":[[] for _ in range(7)]}
 Lead_CRPS = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[] for _ in range(7)],"u10":[[] for _ in range(7)],"v10":[[] for _ in range(7)]}
 
+def debug_velocity_shapes(vel_test, entry, paths_to_data, args, H, W):
+    """Debug velocity tensor shapes and dimensions"""
+    
+    # Print original tensor info
+    print("\nVelocity Tensor Debug Info:")
+    print(f"Original velocity tensor shape: {vel_test[entry].shape}")
+    print(f"Total elements in tensor: {vel_test[entry].numel()}")
+    
+    # Calculate expected dimensions
+    expected_shape = [2, 2*len(paths_to_data)*(args.scale+1), H, W]
+    expected_elements = np.prod(expected_shape)
+    print(f"\nAttempted reshape dimensions: {expected_shape}")
+    print(f"Elements needed for attempted shape: {expected_elements}")
+    
+    # Suggest possible reshaping
+    total_elements = vel_test[entry].numel()
+    possible_shapes = []
+    
+    # Try to find valid shapes
+    if total_elements % (H * W) == 0:
+        middle_dim = total_elements // (2 * H * W)
+        if middle_dim > 0:
+            possible_shapes.append([2, middle_dim, H, W])
+    
+    print("\nPossible valid shapes:")
+    for shape in possible_shapes:
+        print(f"Shape: {shape} (total elements: {np.prod(shape)})")
+
 for entry,(time_steps,batch) in enumerate(zip(time_loader,Test_loader)):
         data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
-        past_sample = vel_test.view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
+        # print(vel_test[entry].shape)
+        # Use before the problematic line:
+        # debug_velocity_shapes(vel_test, entry, paths_to_data, args, H, W)
+        past_sample = vel_test[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
+        # print("Finished Data Loading")
         model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
         t = time_steps.float().to(device).flatten()
         mean_pred,std_pred, mean_wo_bias = model(t,data)
