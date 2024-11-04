@@ -20,6 +20,7 @@ import time
 import torch
 import torch.optim as optim
 import random
+import csv
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -99,9 +100,9 @@ RMSD = []
 RMSD_lat_lon= []
 Pred = []
 Truth  = []
-Lead_RMSD_arr = {"z":[[] for _ in range(8)],"t":[[] for _ in range(8)],"t2m":[[] for _ in range(8)],"u10":[[] for _ in range(8)],"v10":[[] for _ in range(8)]}
-Lead_ACC = {"z":[[] for _ in range(8)],"t":[[] for _ in range(8)],"t2m":[[] for _ in range(8)],"u10":[[] for _ in range(8)],"v10":[[] for _ in range(8)]}
-Lead_CRPS = {"z":[[] for _ in range(8)],"t":[[] for _ in range(8)],"t2m":[[] for _ in range(8)],"u10":[[] for _ in range(8)],"v10":[[] for _ in range(8)]}
+Lead_RMSD_arr = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[] for _ in range(7)],"u10":[[] for _ in range(7)],"v10":[[] for _ in range(7)]}
+Lead_ACC = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[] for _ in range(7)],"u10":[[] for _ in range(7)],"v10":[[] for _ in range(7)]}
+Lead_CRPS = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[] for _ in range(7)],"u10":[[] for _ in range(7)],"v10":[[] for _ in range(7)]}
 
 def debug_velocity_shapes(vel_test, entry, paths_to_data, args, H, W):
     """Debug velocity tensor shapes and dimensions"""
@@ -154,10 +155,38 @@ for entry,(time_steps,batch) in enumerate(zip(time_loader,Test_loader)):
                     Lead_ACC[lev][t_step-1].append(evaluate_acc[idx])
                     Lead_CRPS[lev][t_step-1].append(evaluate_crps[idx])
 
+results = []
 
-for t_idx in range(8):
-    for idx, lev in enumerate(levels):
-        print("Lead Time ",(t_idx+1)*6, "hours ","| Observable ",lev, "| Mean RMSD ", np.mean(Lead_RMSD_arr[lev][t_idx]), "| Std RMSD ", np.std(Lead_RMSD_arr[lev][t_idx]))
-        print("Lead Time ",(t_idx+1)*6, "hours ","| Observable ",lev, "| Mean ACC ", np.mean(Lead_ACC[lev][t_idx]), "| Std ACC ", np.std(Lead_ACC[lev][t_idx]))
-        print("Lead Time ",(t_idx+1)*6, "hours ","| Observable ",lev, "| Mean CRPS ", np.mean(Lead_CRPS[lev][t_idx]), "| Std CRPS ", np.std(Lead_CRPS[lev][t_idx]))
+# for t_idx in range(7):
+#     for idx, lev in enumerate(levels):
+#         print("Lead Time ",(t_idx+1)*6, "hours ","| Observable ",lev, "| Mean RMSD ", np.mean(Lead_RMSD_arr[lev][t_idx]), "| Std RMSD ", np.std(Lead_RMSD_arr[lev][t_idx]))
+#         print("Lead Time ",(t_idx+1)*6, "hours ","| Observable ",lev, "| Mean ACC ", np.mean(Lead_ACC[lev][t_idx]), "| Std ACC ", np.std(Lead_ACC[lev][t_idx]))
+#         print("Lead Time ",(t_idx+1)*6, "hours ","| Observable ",lev, "| Mean CRPS ", np.mean(Lead_CRPS[lev][t_idx]), "| Std CRPS ", np.std(Lead_CRPS[lev][t_idx]))
         
+# Iterate over lead times and levels, collect results
+for t_idx in range(7):
+    for idx, lev in enumerate(levels):
+        mean_rmsd = np.mean(Lead_RMSD_arr[lev][t_idx])
+        std_rmsd = np.std(Lead_RMSD_arr[lev][t_idx])
+        mean_acc = np.mean(Lead_ACC[lev][t_idx])
+        std_acc = np.std(Lead_ACC[lev][t_idx])
+        mean_crps = np.mean(Lead_CRPS[lev][t_idx])
+        std_crps = np.std(Lead_CRPS[lev][t_idx])
+
+        lead_time = (t_idx + 1) * 6
+        print(f"Lead Time {lead_time} hours | Observable {lev} | Mean RMSD {mean_rmsd} | Std RMSD {std_rmsd}")
+        print(f"Lead Time {lead_time} hours | Observable {lev} | Mean ACC {mean_acc} | Std ACC {std_acc}")
+        print(f"Lead Time {lead_time} hours | Observable {lev} | Mean CRPS {mean_crps} | Std CRPS {std_crps}")
+
+        results.append([lead_time, lev, mean_rmsd, std_rmsd, mean_acc, std_acc, mean_crps, std_crps])
+
+# Define CSV header
+header = ["Lead Time (hours)", "Observable", "Mean RMSD", "Std RMSD", "Mean ACC", "Std ACC", "Mean CRPS", "Std CRPS"]
+
+# Write results to CSV file
+with open("evaluation_metrics.csv", mode="w", newline="") as file:
+    writer = csv.writer(file)
+    writer.writerow(header)
+    writer.writerows(results)
+
+print("Results have been saved to evaluation_metrics.csv")
