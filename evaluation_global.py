@@ -99,9 +99,9 @@ RMSD = []
 RMSD_lat_lon= []
 Pred = []
 Truth  = []
-Lead_RMSD_arr = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[] for _ in range(7)],"u10":[[] for _ in range(7)],"v10":[[] for _ in range(7)]}
-Lead_ACC = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[] for _ in range(7)],"u10":[[] for _ in range(7)],"v10":[[] for _ in range(7)]}
-Lead_CRPS = {"z":[[] for _ in range(7)],"t":[[] for _ in range(7)],"t2m":[[] for _ in range(7)],"u10":[[] for _ in range(7)],"v10":[[] for _ in range(7)]}
+Lead_RMSD_arr = {"z":[[] for _ in range(8)],"t":[[] for _ in range(8)],"t2m":[[] for _ in range(8)],"u10":[[] for _ in range(8)],"v10":[[] for _ in range(8)]}
+Lead_ACC = {"z":[[] for _ in range(8)],"t":[[] for _ in range(8)],"t2m":[[] for _ in range(8)],"u10":[[] for _ in range(8)],"v10":[[] for _ in range(8)]}
+Lead_CRPS = {"z":[[] for _ in range(8)],"t":[[] for _ in range(8)],"t2m":[[] for _ in range(8)],"u10":[[] for _ in range(8)],"v10":[[] for _ in range(8)]}
 
 def debug_velocity_shapes(vel_test, entry, paths_to_data, args, H, W):
     """Debug velocity tensor shapes and dimensions"""
