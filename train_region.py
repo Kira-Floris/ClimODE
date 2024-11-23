@@ -117,6 +117,16 @@ print(model)
 print("####################### Total Parameters",param ,"################################")
 model.train()
 
+folder_name = "Models"
+
+# Create the folder if it doesn't exist
+if not os.path.exists(folder_name):
+    os.makedirs(folder_name)
+    print(f"Folder '{folder_name}' created successfully.")
+else:
+    print(f"Folder '{folder_name}' already exists.")
+
+
 for epoch in range(args.niters):
     total_train_loss = 0
     val_loss = 0
@@ -150,6 +160,7 @@ for epoch in range(args.niters):
 
     lr_val = scheduler.get_last_lr()[0]
     scheduler.step()
+    print(f"\nEpoch {epoch}/{args.niters}")
     print("|Iter ",epoch," | Total Train Loss ", total_train_loss,"|")
     print("|Average Train Loss ", total_train_loss/len(Train_loader))
 
@@ -167,7 +178,7 @@ for epoch in range(args.niters):
         # print("Val Loss for batch is ",loss.item())
         val_loss = val_loss + loss.item()
 
-    print("|Iter ",epoch," | Total Val Loss ", val_loss,"|")
+    print("\n|Iter ",epoch," | Total Val Loss ", val_loss,"|")
     print("|Average Val Loss ", val_loss/len(Val_loader))
 
     if val_loss < best_loss:
