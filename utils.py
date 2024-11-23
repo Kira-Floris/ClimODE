@@ -45,6 +45,10 @@ BOUNDARIES = {
     'Australia': { # 10x14
         'lat_range': (-50, 10),
         'lon_range': (100, 180)
+    },
+    'EastAfrica': {
+        'lat_range': (-12, 23),
+        'lon_range': (22, 51)
     }
 }
 
