@@ -178,7 +178,7 @@ for epoch in range(args.niters):
         # print("Val Loss for batch is ",loss.item())
         val_loss = val_loss + loss.item()
 
-    print("\n|Iter ",epoch," | Total Val Loss ", val_loss,"|")
+    print("|Iter ",epoch," | Total Val Loss ", val_loss,"|")
     print("|Average Val Loss ", val_loss/len(Val_loader))
 
     if val_loss < best_loss:
