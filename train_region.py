@@ -142,7 +142,7 @@ for epoch in range(args.niters):
         loss = loss + l2_lambda * l2_norm
         loss.backward()
         optimizer.step()    
-        print("Loss for batch is ",loss.item())
+        # print("Loss for batch is ",loss.item())
         if torch.isnan(loss) : 
             print("Quitting due to Nan loss")
             quit()
@@ -151,6 +151,7 @@ for epoch in range(args.niters):
     lr_val = scheduler.get_last_lr()[0]
     scheduler.step()
     print("|Iter ",epoch," | Total Train Loss ", total_train_loss,"|")
+    print("|Average Train Loss ", total_train_loss/len(Train_loader))
 
     for entry,(time_steps,batch) in enumerate(zip(time_loader,Val_loader)):
         data = batch[0].to(device).view(1,1,len(paths_to_data)*(args.scale+1),H,W)
@@ -163,10 +164,11 @@ for epoch in range(args.niters):
             print("Quitting due to Nan loss")
             quit()
           
-        print("Val Loss for batch is ",loss.item())
+        # print("Val Loss for batch is ",loss.item())
         val_loss = val_loss + loss.item()
 
     print("|Iter ",epoch," | Total Val Loss ", val_loss,"|")
+    print("|Average Val Loss ", val_loss/len(Val_loader))
 
     if val_loss < best_loss:
         best_loss = val_loss
