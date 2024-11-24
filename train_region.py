@@ -155,7 +155,7 @@ for epoch in range(args.niters):
         # optimizer.step()
 
         # Wrap forward pass with autocast
-        with torch.amp.autocast():
+        with torch.amp.autocast(device_type=device):
             data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
             past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
             model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
