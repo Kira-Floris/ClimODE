@@ -142,30 +142,30 @@ for epoch in range(args.niters):
     
     for entry,(time_steps,batch) in enumerate(zip(time_loader,Train_loader)):
         optimizer.zero_grad()
-        # data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
-        # past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
-        # model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
-        # t = time_steps.float().to(device).flatten()
-        # mean,std = model(t,data)
-        # loss = nll(mean,std,batch.float().to(device),lat,var_coeff)
-        # l2_lambda = 0.001
-        # l2_norm = sum(p.pow(2.0).sum()
-        #         for p in model.parameters())
-        # loss = loss + l2_lambda * l2_norm
-        # loss.backward()
-        # optimizer.step()
+        data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
+        past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
+        model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
+        t = time_steps.float().to(device).flatten()
+        mean,std = model(t,data)
+        loss = nll(mean,std,batch.float().to(device),lat,var_coeff)
+        l2_lambda = 0.001
+        l2_norm = sum(p.pow(2.0).sum()
+                for p in model.parameters())
+        loss = loss + l2_lambda * l2_norm
+        loss.backward()
+        optimizer.step()
 
         # Wrap forward pass with autocast
-        with torch.amp.autocast(device_type=device_type):
-            data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
-            past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
-            model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
-            t = time_steps.float().to(device).flatten()
-            mean,std = model(t,data)
-            loss = nll(mean,std,batch.float().to(device),lat,var_coeff)
-            l2_lambda = 0.001
-            l2_norm = sum(p.pow(2.0).sum() for p in model.parameters())
-            loss = loss + l2_lambda * l2_norm
+        # with torch.amp.autocast(device_type=device_type):
+        #     data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
+        #     past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
+        #     model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
+        #     t = time_steps.float().to(device).flatten()
+        #     mean,std = model(t,data)
+        #     loss = nll(mean,std,batch.float().to(device),lat,var_coeff)
+        #     l2_lambda = 0.001
+        #     l2_norm = sum(p.pow(2.0).sum() for p in model.parameters())
+        #     loss = loss + l2_lambda * l2_norm
 
         # Replace standard backward/optimizer steps with scaled versions
         scaler.scale(loss).backward()
