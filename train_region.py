@@ -48,6 +48,7 @@ args = parser.parse_args()
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
 train_time_scale= slice('2006','2016')
 val_time_scale = slice('2016','2016')
 test_time_scale = slice('2017','2018')
@@ -155,7 +156,7 @@ for epoch in range(args.niters):
         # optimizer.step()
 
         # Wrap forward pass with autocast
-        with torch.amp.autocast(device_type=device):
+        with torch.amp.autocast(device_type=device_type):
             data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
             past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
             model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
