@@ -79,6 +79,110 @@ class Self_attn_conv_reg(nn.Module):
         o = torch.bmm(v, beta.transpose(1,2))
         o = self.post_map(o.view(-1,self.out_ch,size[-2],size[-1]).contiguous())
         return o
+    
+
+class SELayer(nn.Module):
+    def __init__(self, channel, reduction=16):
+        """
+        Squeeze-and-Excitation Layer
+        
+        Args:
+            channel (int): Number of input channels
+            reduction (int): Reduction ratio for channel compression
+        """
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        
+        self.fc = nn.Sequential(
+            nn.Linear(channel, channel // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        """
+        Forward pass of SE Layer
+        
+        Args:
+            x (torch.Tensor): Input feature map
+        
+        Returns:
+            torch.Tensor: Channel-wise recalibrated feature map
+        """
+        b, c, _, _ = x.size()
+        y = self.avg_pool(x).view(b, c)
+        
+        y = self.fc(y).view(b, c, 1, 1)
+        
+        return x * y.expand_as(x)
+
+class SEResNetBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        activation: str = "gelu",
+        norm: bool = False,
+        n_groups: int = 1,
+        reduction: int = 16
+    ):
+        """
+        Squeeze-and-Excitation ResNet Block
+        
+        Args:
+            in_channels (int): Number of input channels
+            out_channels (int): Number of output channels
+            activation (str): Activation function type
+            norm (bool): Whether to use group normalization
+            n_groups (int): Number of groups for group normalization
+            reduction (int): Reduction ratio for SE layer
+        """
+        super().__init__()
+        self.activation = nn.LeakyReLU(0.3)
+        
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=0)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3, 3), padding=0)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        
+        self.se_layer = SELayer(out_channels, reduction)
+        
+        self.drop = nn.Dropout(p=0.1)
+        
+        if in_channels != out_channels:
+            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1))
+        else:
+            self.shortcut = nn.Identity()
+        
+        if norm:
+            self.norm1 = nn.GroupNorm(n_groups, in_channels)
+            self.norm2 = nn.GroupNorm(n_groups, out_channels)
+        else:
+            self.norm1 = nn.Identity()
+            self.norm2 = nn.Identity()
+
+    def forward(self, x: torch.Tensor):
+        """
+        Forward pass of SE-ResNet Block
+        
+        Args:
+            x (torch.Tensor): Input tensor
+        
+        Returns:
+            torch.Tensor: Output tensor after SE-ResNet block processing
+        """
+        x_mod = F.pad(F.pad(x, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
+        h = self.activation(self.bn1(self.conv1(self.norm1(x_mod))))
+        
+        h = F.pad(F.pad(h, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
+        h = self.activation(self.bn2(self.conv2(self.norm2(h))))
+        
+        h = self.se_layer(h)
+        
+        h = self.drop(h)
+        
+        return h + self.shortcut(x)
 
 
 
