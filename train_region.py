@@ -117,7 +117,7 @@ time_idx = DataLoader(time_idx_steps[2:],batch_size=args.batch_size,shuffle=Fals
 num_years = len(range(2006,2016))
 # model = Climate_encoder_free_uncertain_region(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False).to(device)
 model = ClimODE_uncertain_region(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False).to(device)
-model = torch.compile(model, mode='default')
+# model = torch.compile(model, mode='default')
 #model.apply(weights_init_uniform_rule)
 param = count_parameters(model)
 optimizer = optim.AdamW(model.parameters(), lr=args.lr)
@@ -166,35 +166,35 @@ for epoch in range(args.niters):
     
     for entry,(time_steps,batch) in enumerate(zip(time_loader,Train_loader)):
         optimizer.zero_grad()
-        # data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
-        # past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
-        # model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
-        # t = time_steps.float().to(device).flatten()
-        # mean,std = model(t,data)
-        # loss = nll(mean,std,batch.float().to(device),lat,var_coeff)
-        # l2_lambda = 0.001
-        # l2_norm = sum(p.pow(2.0).sum()
-        #         for p in model.parameters())
-        # loss = loss + l2_lambda * l2_norm
-        # loss.backward()
-        # optimizer.step()
+        data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
+        past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
+        model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
+        t = time_steps.float().to(device).flatten()
+        mean,std = model(t,data)
+        loss = nll(mean,std,batch.float().to(device),lat,var_coeff)
+        l2_lambda = 0.001
+        l2_norm = sum(p.pow(2.0).sum()
+                for p in model.parameters())
+        loss = loss + l2_lambda * l2_norm
+        loss.backward()
+        optimizer.step()
 
-        # Wrap forward pass with autocast
-        with torch.amp.autocast(device_type=device_type):
-            data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
-            past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
-            model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
-            t = time_steps.float().to(device).flatten()
-            mean,std = model(t,data)
-            loss = nll(mean,std,batch.float().to(device),lat,var_coeff)
-            l2_lambda = 0.001
-            l2_norm = sum(p.pow(2.0).sum() for p in model.parameters())
-            loss = loss + l2_lambda * l2_norm
+        # # Wrap forward pass with autocast
+        # with torch.amp.autocast(device_type=device_type):
+        #     data = batch[0].to(device).view(num_years,1,len(paths_to_data)*(args.scale+1),H,W)
+        #     past_sample = vel_train[entry].view(num_years,2*len(paths_to_data)*(args.scale+1),H,W).to(device)
+        #     model.update_param([past_sample,const_channels_info.to(device),lat_map.to(device),lon_map.to(device)])
+        #     t = time_steps.float().to(device).flatten()
+        #     mean,std = model(t,data)
+        #     loss = nll(mean,std,batch.float().to(device),lat,var_coeff)
+        #     l2_lambda = 0.001
+        #     l2_norm = sum(p.pow(2.0).sum() for p in model.parameters())
+        #     loss = loss + l2_lambda * l2_norm
 
-        # Replace standard backward/optimizer steps with scaled versions
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+        # # Replace standard backward/optimizer steps with scaled versions
+        # scaler.scale(loss).backward()
+        # scaler.step(optimizer)
+        # scaler.update()
 
         # print("Loss for batch is ",loss.item())
         if torch.isnan(loss) : 
