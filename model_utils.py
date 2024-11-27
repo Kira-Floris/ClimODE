@@ -148,7 +148,7 @@ class SEResNetBlock(nn.Module):
         
         self.se_layer = SELayer(out_channels, reduction)
         
-        self.drop = nn.Dropout(p=0.2)
+        self.drop = nn.Dropout(p=0.1)
         
         if in_channels != out_channels:
             self.shortcut = nn.Sequential(
