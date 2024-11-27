@@ -13,4 +13,5 @@ xarray
 netcdf4 
 h5netcdf
 dask
+wandb
 # triton

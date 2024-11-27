@@ -25,6 +25,7 @@ import logging
 logging.propagate = False 
 logging.getLogger().setLevel(logging.ERROR)
 import sys
+import wandb
 
 
 set_seed(42)
@@ -33,6 +34,7 @@ cwd = os.getcwd()
 SOLVERS = ["dopri8","dopri5", "bdf", "rk4", "midpoint", 'adams', 'explicit_adams', 'fixed_adams',"adaptive_heun","euler"]
 parser = argparse.ArgumentParser('ClimODE')
 
+parser.add_argument("--wandb_key", type=str, help="Wandb API Key")
 parser.add_argument('--solver', type=str, default="euler", choices=SOLVERS)
 parser.add_argument('--atol', type=float, default=5e-3)
 parser.add_argument('--rtol', type=float, default=5e-3)
@@ -45,6 +47,25 @@ parser.add_argument('--lr', type=float, default=0.0005)
 parser.add_argument('--weight_decay', type=float, default=1e-5)
 parser.add_argument('--region', type=str, default='NorthAmerica',choices=BOUNDARIES)
 args = parser.parse_args()
+
+wandb.login(key=args.wandb_key)
+
+wandb.init(
+    project="ClimODE",
+    name=f"ClimODE_{args.region}_{args.solver}",
+    config={
+        "solver": args.solver,
+        "atol": args.atol,
+        "rtol": args.rtol,
+        "iterations": args.niters,
+        "batch_size": args.batch_size,
+        "scale": args.scale,
+        "spectral": args.spectral,
+        "learning_rate": args.lr,
+        "weight_decay": args.weight_decay,
+        "region": args.region
+    }
+)
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -102,6 +123,9 @@ param = count_parameters(model)
 optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 300)
 scaler = torch.amp.GradScaler()
+
+# log model parameters
+wandb.watch(model, log="all", log_freq=10)
 
 best_loss = float('inf')
 train_best_loss = float('inf')
@@ -193,6 +217,7 @@ for epoch in range(args.niters):
         loss = nll(mean,std,batch.float().to(device),lat,var_coeff)
         if torch.isnan(loss) : 
             print("Quitting due to Nan loss")
+            wandb.finish()
             quit()
           
         # print("Val Loss for batch is ",loss.item())
@@ -201,7 +226,15 @@ for epoch in range(args.niters):
     print("|Iter ",epoch," | Total Val Loss ", val_loss,"|")
     print("|Average Val Loss ", val_loss/len(Val_loader))
 
+    wandb.log({
+        "train_loss": total_train_loss/len(Train_loader),
+        "val_loss": val_loss/len(Val_loader),
+        "learning_rate": lr_val
+    })
+
     if val_loss < best_loss:
         best_loss = val_loss
         best_epoch = epoch
         torch.save(model,str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + str(epoch) + ".pt")
+
+wandb.finish()
