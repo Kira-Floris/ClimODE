@@ -64,7 +64,8 @@ wandb.init(
         "spectral": args.spectral,
         "learning_rate": args.lr,
         "weight_decay": args.weight_decay,
-        "region": args.region
+        "region": args.region,
+        "description": args.description
     }
 )
 
