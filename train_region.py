@@ -46,6 +46,7 @@ parser.add_argument('--spectral', type=int, default=0,choices=[0,1])
 parser.add_argument('--lr', type=float, default=0.0005)
 parser.add_argument('--weight_decay', type=float, default=1e-5)
 parser.add_argument('--region', type=str, default='NorthAmerica',choices=BOUNDARIES)
+parser.add_argument("--description", type=str, default=None, help="Description of the model being trained")
 args = parser.parse_args()
 
 wandb.login(key=args.wandb_key)
