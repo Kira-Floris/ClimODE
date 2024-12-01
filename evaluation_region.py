@@ -33,6 +33,7 @@ parser.add_argument('--days', type=int, default=3)
 parser.add_argument('--batch_size', type=int, default=8)
 parser.add_argument('--spectral', type=int, default=0,choices=[0,1])
 parser.add_argument('--region', type=str, default='NorthAmerica',choices=BOUNDARIES)
+parser.add_argument("--model_path", type=str, help="Path to Model")
 args = parser.parse_args()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -83,7 +84,7 @@ total_time_steps = time_steps[2:].numpy().flatten().tolist()
 num_years  = 2
 
 vel_test= torch.from_numpy(np.load('test_10year_2day_mm_'+str(args.region)+'_vel.npy'))
-model = torch.load(str(cwd) + "Put_your_model_path",map_location=torch.device('cpu')).to(device)
+model = torch.load(str(cwd) + args.model_path,map_location=torch.device('cpu')).to(device)
 print(model)
 
 RMSD = []
