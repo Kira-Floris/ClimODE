@@ -239,7 +239,6 @@ class VisionTransformer(nn.Module):
             torch.zeros(1, self.num_patches, self.embed_dim)
         )
         
-        # Ensure embed_dim is divisible by num_heads
         self.encoder_layers = nn.ModuleList([
             nn.TransformerEncoderLayer(
                 d_model=self.embed_dim, 
@@ -259,6 +258,9 @@ class VisionTransformer(nn.Module):
         nn.init.trunc_normal_(self.positional_embedding, std=0.02)
     
     def forward(self, x):
+        # Ensure input is float32
+        x = x.to(torch.float32)
+        
         batch_size = x.size(0)
         
         x = self.patch_embed(x)
