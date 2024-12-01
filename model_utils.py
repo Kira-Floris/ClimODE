@@ -215,3 +215,50 @@ class Self_attn_conv(nn.Module):
         return o
 
 
+
+class VisionTransformer(nn.Module):
+    def __init__(self, in_channels, out_channels, patch_size=16, num_heads=8, num_layers=6):
+        super(VisionTransformer, self).__init__()
+        
+        self.patch_size = patch_size
+        self.embed_dim = out_channels
+        self.num_heads = num_heads
+        self.num_layers = num_layers
+        
+        self.patch_embed = nn.Conv2d(
+            in_channels, self.embed_dim, kernel_size=patch_size, stride=patch_size, padding=0
+        )
+        
+        self.num_patches = (224 // patch_size) ** 2 
+        self.positional_embedding = nn.Parameter(
+            torch.zeros(1, self.num_patches, self.embed_dim)
+        )
+        
+        self.encoder_layers = nn.ModuleList([
+            nn.TransformerEncoderLayer(
+                d_model=self.embed_dim, nhead=num_heads, dim_feedforward=self.embed_dim * 4, dropout=0.1
+            )
+            for _ in range(num_layers)
+        ])
+        
+        self.classifier = nn.Sequential(
+            nn.LayerNorm(self.embed_dim),
+            nn.Linear(self.embed_dim, self.embed_dim)
+        )
+    
+    def forward(self, x):
+        batch_size = x.size(0)
+        
+        x = self.patch_embed(x)
+        x = x.flatten(2).transpose(1, 2) 
+        
+        x = x + self.positional_embedding[:, :x.size(1), :].to(x.device)
+        
+        for layer in self.encoder_layers:
+            x = layer(x)
+        
+        x = x.mean(dim=1)
+        
+        x = self.classifier(x)
+        
+        return x
