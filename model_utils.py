@@ -219,22 +219,25 @@ class Self_attn_conv(nn.Module):
 import math
 
 class VisionTransformer(nn.Module):
-    def __init__(self, in_channels, out_channels, patch_size=16, num_heads=8, num_layers=6):
+    def __init__(self, in_channels, out_channels, patch_size=16, num_heads=8, num_layers=6, image_size=224):
         super(VisionTransformer, self).__init__()
         
-        # Ensure embed_dim is divisible by num_heads
+        # Dynamic patch embedding calculation
         self.patch_size = patch_size
         self.num_heads = num_heads
+        self.image_size = image_size
         
-        # Adjust embed_dim to be divisible by num_heads
+        # Ensure embed_dim is divisible by num_heads
         self.embed_dim = math.ceil(out_channels / num_heads) * num_heads
         
+        # Calculate number of patches dynamically
+        self.num_patches = (image_size // patch_size) ** 2
+        
+        # Adaptive patch embedding
         self.patch_embed = nn.Conv2d(
-            in_channels, self.embed_dim, kernel_size=patch_size, stride=patch_size, padding=0
+            in_channels, self.embed_dim, kernel_size=patch_size, stride=patch_size
         )
         
-        # Hardcoded image size, adjust if needed
-        self.num_patches = (224 // patch_size) ** 2 
         self.positional_embedding = nn.Parameter(
             torch.zeros(1, self.num_patches, self.embed_dim)
         )
@@ -251,7 +254,7 @@ class VisionTransformer(nn.Module):
         
         self.classifier = nn.Sequential(
             nn.LayerNorm(self.embed_dim),
-            nn.Linear(self.embed_dim, out_channels)  # Changed to out_channels
+            nn.Linear(self.embed_dim, out_channels)
         )
         
         # Initialize positional embedding
@@ -262,6 +265,11 @@ class VisionTransformer(nn.Module):
         x = x.to(torch.float32)
         
         batch_size = x.size(0)
+        
+        # Dynamically adjust patch embedding if input size is different
+        if x.size(2) != self.image_size or x.size(3) != self.image_size:
+            # Resize input to match expected image size
+            x = nn.functional.interpolate(x, size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)
         
         x = self.patch_embed(x)
         x = x.flatten(2).transpose(1, 2) 
