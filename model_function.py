@@ -434,7 +434,7 @@ class Climate_encoder_free_uncertain_vit(nn.Module):
         self.vel_f = Climate_ResNet_2D(input_channels,self.layers,self.hidden)
 
         if use_att: 
-            self.vel_att = VisionTransformer(input_channels,10)
+            self.vel_att = VisionTransformer(input_channels,input_channels)
             self.gamma = nn.Parameter(torch.tensor([0.1]))
 
         self.scales = num_channels
