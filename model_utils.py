@@ -219,36 +219,72 @@ class Self_attn_conv(nn.Module):
 import math
 
 class VisionTransformer(nn.Module):
-    def __init__(self, in_channels, out_channels, patch_size=16, num_heads=8, num_layers=6, image_size=None):
+    def __init__(self, in_channels, out_channels, patch_size=16, num_heads=8, num_layers=6, image_size=224):
         super(VisionTransformer, self).__init__()
         
-        # If no image size is provided, we'll adapt dynamically
+        # Dynamic patch embedding calculation
         self.patch_size = patch_size
         self.num_heads = num_heads
+        self.image_size = image_size
         
         # Ensure embed_dim is divisible by num_heads
-        self.embed_dim = math.ceil(in_channels / num_heads) * num_heads
+        self.embed_dim = math.ceil(out_channels / num_heads) * num_heads
+        
+        # Calculate number of patches dynamically
+        self.num_patches = (image_size // patch_size) ** 2
         
         # Adaptive patch embedding
         self.patch_embed = nn.Conv2d(
             in_channels, self.embed_dim, kernel_size=patch_size, stride=patch_size
         )
         
-        # Flatten and projection layers to match output channels
-        self.flatten = nn.Flatten(start_dim=2)
-        self.project = nn.Linear(self.embed_dim, out_channels)
+        self.positional_embedding = nn.Parameter(
+            torch.zeros(1, self.num_patches, self.embed_dim)
+        )
+        
+        self.encoder_layers = nn.ModuleList([
+            nn.TransformerEncoderLayer(
+                d_model=self.embed_dim, 
+                nhead=num_heads, 
+                dim_feedforward=self.embed_dim * 4, 
+                dropout=0.1
+            )
+            for _ in range(num_layers)
+        ])
+        
+        self.classifier = nn.Sequential(
+            nn.LayerNorm(self.embed_dim),
+            nn.Linear(self.embed_dim, out_channels)
+        )
+        
+        # Initialize positional embedding
+        nn.init.trunc_normal_(self.positional_embedding, std=0.02)
     
     def forward(self, x):
         # Ensure input is float32
         x = x.to(torch.float32)
         
-        # Patch embedding
+        batch_size = x.size(0)
+        
+        # Dynamically adjust patch embedding if input size is different
+        if x.size(2) != self.image_size or x.size(3) != self.image_size:
+            # Resize input to match expected image size
+            x = nn.functional.interpolate(x, size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)
+        
         x = self.patch_embed(x)
+        x = x.flatten(2).transpose(1, 2) 
+        
+        # Add positional embedding
+        x = x + self.positional_embedding[:, :x.size(1), :].to(x.device)
+        
+        # Apply transformer encoder layers
+        for layer in self.encoder_layers:
+            x = layer(x)
         
         # Global average pooling
-        x = F.adaptive_avg_pool2d(x, (1, 1)).squeeze(-1).squeeze(-1)
+        x = x.mean(dim=1)
         
-        # Project to desired output channels
-        x = self.project(x)
+        # Classification
+        x = self.classifier(x)
         
         return x
