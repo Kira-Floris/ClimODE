@@ -226,11 +226,14 @@ class GlobalContextBlock(nn.Module):
         
         # Dropout and activation
         self.activation = nn.LeakyReLU(0.3)
-        self.drop = nn.Dropout(p=0.1)
+        self.drop = nn.Dropout(p=0.2)
         
         # Shortcut connection
         if in_channels != out_channels:
-            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1))
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1)),
+                nn.BatchNorm2d(out_channels)
+            )
         else:
             self.shortcut = nn.Identity()
         
