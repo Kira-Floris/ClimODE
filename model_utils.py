@@ -215,76 +215,139 @@ class Self_attn_conv(nn.Module):
         return o
 
 
-
 import math
 
-class VisionTransformer(nn.Module):
-    def __init__(self, in_channels, out_channels, patch_size=16, num_heads=8, num_layers=6, image_size=224):
-        super(VisionTransformer, self).__init__()
-        
-        # Dynamic patch embedding calculation
-        self.patch_size = patch_size
-        self.num_heads = num_heads
-        self.image_size = image_size
-        
-        # Ensure embed_dim is divisible by num_heads
-        self.embed_dim = math.ceil(out_channels / num_heads) * num_heads
-        
-        # Calculate number of patches dynamically
-        self.num_patches = (image_size // patch_size) ** 2
-        
-        # Adaptive patch embedding
-        self.patch_embed = nn.Conv2d(
-            in_channels, self.embed_dim, kernel_size=patch_size, stride=patch_size
-        )
-        
-        self.positional_embedding = nn.Parameter(
-            torch.zeros(1, self.num_patches, self.embed_dim)
-        )
-        
-        self.encoder_layers = nn.ModuleList([
-            nn.TransformerEncoderLayer(
-                d_model=self.embed_dim, 
-                nhead=num_heads, 
-                dim_feedforward=self.embed_dim * 4, 
-                dropout=0.1
-            )
-            for _ in range(num_layers)
-        ])
-        
-        self.classifier = nn.Sequential(
-            nn.LayerNorm(self.embed_dim),
-            nn.Linear(self.embed_dim, out_channels)
-        )
-        
-        # Initialize positional embedding
-        nn.init.trunc_normal_(self.positional_embedding, std=0.02)
-    
+class WindowPartition(nn.Module):
+    def __init__(self, window_size=7):
+        super().__init__()
+        self.window_size = window_size
+
     def forward(self, x):
-        # Ensure input is float32
-        x = x.to(torch.float32)
+        B, C, H, W = x.shape
+        window_size = self.window_size
         
-        batch_size = x.size(0)
+        # Pad if needed to ensure divisibility
+        pad_h = (window_size - H % window_size) % window_size
+        pad_w = (window_size - W % window_size) % window_size
         
-        # Dynamically adjust patch embedding if input size is different
-        if x.size(2) != self.image_size or x.size(3) != self.image_size:
-            # Resize input to match expected image size
-            x = nn.functional.interpolate(x, size=(self.image_size, self.image_size), mode='bilinear', align_corners=False)
+        if pad_h > 0 or pad_w > 0:
+            x = F.pad(x, (0, pad_w, 0, pad_h))
         
-        x = self.patch_embed(x)
-        x = x.flatten(2).transpose(1, 2) 
+        # Reshape into windows
+        x = x.view(B, C, H + pad_h // window_size, window_size, W + pad_w // window_size, window_size)
+        windows = x.permute(0, 2, 4, 1, 3, 5).contiguous().view(-1, C, window_size, window_size)
         
-        # Add positional embedding
-        x = x + self.positional_embedding[:, :x.size(1), :].to(x.device)
+        return windows, (H, W)
+
+class WindowReverse(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, windows, original_size, window_size):
+        H, W = original_size
+        B = int(windows.shape[0] / ((H + window_size - 1) // window_size * 
+                                    (W + window_size - 1) // window_size))
         
-        # Apply transformer encoder layers
-        for layer in self.encoder_layers:
-            x = layer(x)
+        windows = windows.view(B, (H + window_size - 1) // window_size, 
+                                (W + window_size - 1) // window_size, 
+                                windows.shape[1], window_size, window_size)
         
-        # Global average pooling
-        x = x.mean(dim=1)
+        windows = windows.permute(0, 3, 1, 4, 2, 5).contiguous()
+        windows = windows.view(B, windows.shape[1], 
+                               (H + window_size - 1) // window_size * window_size, 
+                               (W + window_size - 1) // window_size * window_size)
         
-        # Classification
-        x = self.classifier(x)
+        # Remove padding if needed
+        windows = windows[:, :, :H, :W]
         
-        return x
+        return windows
+
+class SwinTransformerAttention(nn.Module):
+    def __init__(self, in_channels, out_channels, window_size=7, shift_size=0):
+        super().__init__()
+        self.window_size = window_size
+        self.shift_size = shift_size
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
+        # Query, Key, Value projections
+        self.query = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+        self.key = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+        self.value = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+
+        # Window partition and reverse operations
+        self.window_partition = WindowPartition(window_size)
+        self.window_reverse = WindowReverse()
+
+        # Relative position bias
+        self.relative_position_bias_table = nn.Parameter(
+            torch.zeros((2 * window_size - 1) * (2 * window_size - 1), out_channels)
+        )
+        self.register_buffer("relative_position_index", self._get_relative_position_index())
+
+        # Final projection
+        self.post_map = nn.Conv2d(out_channels, out_channels, kernel_size=1)
+
+    def _get_relative_position_index(self):
+        coords_h = torch.arange(self.window_size)
+        coords_w = torch.arange(self.window_size)
+        coords = torch.stack(torch.meshgrid([coords_h, coords_w], indexing='ij'))
+        coords_flatten = torch.flatten(coords, 1)
+        relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]
+        relative_coords = relative_coords.permute(1, 2, 0).contiguous()
+        relative_coords[:, :, 0] += self.window_size - 1
+        relative_coords[:, :, 1] += self.window_size - 1
+        relative_coords[:, :, 0] *= 2 * self.window_size - 1
+        return relative_coords.sum(-1)
+
+    def forward(self, x):
+        B, C, H, W = x.shape
+
+        # Cyclic shift if shift_size is specified
+        if self.shift_size > 0:
+            shifted_x = torch.roll(x, shifts=(-self.shift_size, -self.shift_size), dims=(2, 3))
+        else:
+            shifted_x = x
+
+        # Partition into windows
+        windows, (orig_h, orig_w) = self.window_partition(shifted_x)
+        
+        # Compute attention within windows
+        query = self.query(windows)
+        key = self.key(windows)
+        value = self.value(windows)
+
+        # Reshape for attention computation
+        query = query.view(query.size(0), query.size(1), -1).transpose(1, 2)
+        key = key.view(key.size(0), key.size(1), -1)
+        value = value.view(value.size(0), value.size(1), -1).transpose(1, 2)
+
+        # Compute attention
+        attn = torch.bmm(query, key)
+        
+        # Add relative position bias
+        relative_position_bias = self.relative_position_bias_table[self.relative_position_index.view(-1)].view(
+            self.window_size * self.window_size, 
+            self.window_size * self.window_size, 
+            -1
+        )
+        attn = attn + relative_position_bias.mean(dim=-1)
+        
+        # Softmax and apply attention
+        attn = F.softmax(attn, dim=-1)
+        output = torch.bmm(attn, value)
+
+        # Reshape back
+        output = output.transpose(1, 2).contiguous().view_as(windows)
+        
+        # Reverse window partition
+        output = self.window_reverse(output, (orig_h, orig_w), self.window_size)
+        
+        # Reverse cyclic shift if applicable
+        if self.shift_size > 0:
+            output = torch.roll(output, shifts=(self.shift_size, self.shift_size), dims=(2, 3))
+
+        # Final projection
+        output = self.post_map(output)
+
+        return output

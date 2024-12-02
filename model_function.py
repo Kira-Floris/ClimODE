@@ -424,7 +424,7 @@ class ClimODE_encoder_free_uncertain(nn.Module):
 
 
 
-class Climate_encoder_free_uncertain_vit(nn.Module): 
+class Climate_encoder_free_uncertain_swin(nn.Module): 
     
     def __init__(self,num_channels,const_channels,out_types,method,use_att,use_err,use_pos):
         super().__init__()
@@ -434,7 +434,7 @@ class Climate_encoder_free_uncertain_vit(nn.Module):
         self.vel_f = Climate_ResNet_2D(input_channels,self.layers,self.hidden)
 
         if use_att: 
-            self.vel_att = VisionTransformer(input_channels,input_channels)
+            self.vel_att = SwinTransformerAttention(input_channels,10)
             self.gamma = nn.Parameter(torch.tensor([0.1]))
 
         self.scales = num_channels

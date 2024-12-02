@@ -118,7 +118,7 @@ time_idx = DataLoader(time_idx_steps[2:],batch_size=args.batch_size,shuffle=Fals
 #Model declaration
 num_years = len(range(2006,2016))
 # model = Climate_encoder_free_uncertain_region(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False).to(device)
-model = Climate_encoder_free_uncertain_vit(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False).to(device)
+model = Climate_encoder_free_uncertain_swin(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False).to(device)
 # model = torch.compile(model, mode='default')
 #model.apply(weights_init_uniform_rule)
 param = count_parameters(model)
