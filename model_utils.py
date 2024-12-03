@@ -695,7 +695,7 @@ class CNNLSTMResidualBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(out_channels)
         
         # Dropout
-        self.drop = nn.Dropout(p=0.1)
+        self.drop = nn.Dropout(p=0.2)
         
         # LSTM layers
         self.lstm = nn.LSTM(
@@ -707,7 +707,10 @@ class CNNLSTMResidualBlock(nn.Module):
         
         # Projection for shortcut connection
         if in_channels != out_channels:
-            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1))
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1)),
+                nn.BatchNorm2d(out_channels)
+            )
         else:
             self.shortcut = nn.Identity()
         
