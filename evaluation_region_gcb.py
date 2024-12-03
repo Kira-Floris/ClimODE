@@ -212,9 +212,9 @@ header = ["Lead Time (hours)", "Observable", "Mean RMSD", "Std RMSD", "Mean ACC"
 import csv
 
 # Write results to CSV file
-with open("./evaluations/evaluation_metrics_baseline.csv", mode="w", newline="") as file:
+with open("./evaluations/evaluation_metrics_gcb.csv", mode="w", newline="") as file:
     writer = csv.writer(file)
     writer.writerow(header)
     writer.writerows(results)
 
-print("Results have been saved to evaluation_metrics.csv")
+print("Results have been saved to evaluations/evaluation_metrics_gcb.csv")
