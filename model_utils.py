@@ -610,7 +610,7 @@ class CoordinateAttentionResNetBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        out_channels,
+        out_channels: int,
         activation: str = "gelu",
         norm: bool = False,
         n_groups: int = 1,
@@ -619,8 +619,8 @@ class CoordinateAttentionResNetBlock(nn.Module):
         super().__init__()
 
         # Ensure out_channels is an integer
-        if isinstance(out_channels, list):
-            out_channels = out_channels[0]
+        # if isinstance(out_channels, list):
+        #     out_channels = out_channels[0]
         out_channels = int(out_channels)
         
         self.activation = nn.LeakyReLU(0.3)

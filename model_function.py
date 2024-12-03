@@ -1227,6 +1227,42 @@ class Climate_GCB_2D(nn.Module):
 
                 
         return dx_final
+    
+
+class Climate_CARM_2D(nn.Module): 
+    
+    def __init__(self,num_channels,layers,hidden_size):
+        super().__init__()
+        layers_cnn = []
+        activation_fns = []
+        self.block = CoordinateAttentionResNetBlock
+        self.inplanes = num_channels
+
+        for idx in range(len(layers)):
+            if idx ==0:
+               layers_cnn.append(self.make_layer(self.block,num_channels,hidden_size[idx],layers[idx]))
+            else:
+                layers_cnn.append(self.make_layer(self.block,hidden_size[idx-1],hidden_size[idx],layers[idx]))
+        
+        self.layer_cnn = nn.ModuleList(layers_cnn)
+        self.activation_cnn = nn.ModuleList(activation_fns)
+
+    def make_layer(self,block,in_channels,out_channels,reps):
+        layers = []
+        layers.append(block(in_channels,out_channels))
+        self.inplanes = out_channels
+        for i in range(1, reps):  
+              layers.append(block(out_channels, out_channels))
+
+        return nn.Sequential(*layers)
+
+    def forward(self,data):
+        dx_final = data.float()
+        for l,layer in enumerate(self.layer_cnn):
+            dx_final = layer(dx_final)
+
+                
+        return dx_final
 
 
 
@@ -2045,7 +2081,7 @@ class ClimODE_uncertain_region_CARM(nn.Module):
         self.layers = [5,3,2]
         self.hidden = [128,64,2*out_types]
         input_channels = 30 + out_types*int(use_pos) + 34*(1-int(use_pos))
-        self.vel_f = CoordinateAttentionResNetBlock(input_channels,self.layers,self.hidden)
+        self.vel_f = Climate_CARM_2D(input_channels,self.layers,self.hidden)
 
         if use_att: 
             self.vel_att = Self_attn_conv_reg(input_channels,2*out_types)
@@ -2065,8 +2101,8 @@ class ClimODE_uncertain_region_CARM(nn.Module):
         self.elev_info_grad_y = 0
         self.method = method
         err_in =  9 + out_types*int(use_pos) + 34*(1-int(use_pos))
-        if use_err: self.noise_net = CoordinateAttentionResNetBlock(err_in,[3,2,2],[128,64,2*out_types])
-        if use_pos: self.pos_enc = CoordinateAttentionResNetBlock(4,[2,1,1],[32,16,out_types])
+        if use_err: self.noise_net = Climate_CARM_2D(err_in,[3,2,2],[128,64,2*out_types])
+        if use_pos: self.pos_enc = Climate_CARM_2D(4,[2,1,1],[32,16,out_types])
         self.att = use_att
         self.err = use_err
         self.pos = use_pos
