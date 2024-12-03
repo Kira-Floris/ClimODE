@@ -669,6 +669,87 @@ class CoordinateAttentionResNetBlock(nn.Module):
         h = self.drop(h)
         
         return h + self.shortcut(x)
+    
+
+class CNNLSTMResidualBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        hidden_size: int,
+        num_lstm_layers: int = 1,
+        activation: str = "gelu",
+        norm: bool = False,
+        n_groups: int = 1,
+    ):
+        super().__init__()
+        # Convolutional layers
+        self.activation = nn.LeakyReLU(0.3)
+        
+        # First convolutional layer
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=0)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        
+        # Second convolutional layer
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3, 3), padding=0)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        
+        # Dropout
+        self.drop = nn.Dropout(p=0.1)
+        
+        # LSTM layers
+        self.lstm = nn.LSTM(
+            input_size=out_channels,  # Use out_channels as input size for LSTM
+            hidden_size=hidden_size,
+            num_layers=num_lstm_layers,
+            batch_first=True
+        )
+        
+        # Projection for shortcut connection
+        if in_channels != out_channels:
+            self.shortcut = nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1))
+        else:
+            self.shortcut = nn.Identity()
+        
+        # Normalization
+        if norm:
+            self.norm1 = nn.GroupNorm(n_groups, in_channels)
+            self.norm2 = nn.GroupNorm(n_groups, out_channels)
+        else:
+            self.norm1 = nn.Identity()
+            self.norm2 = nn.Identity()
+
+    def forward(self, x: torch.Tensor):
+        # CNN Path
+        # First convolution layer with padding
+        x_mod = F.pad(F.pad(x, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
+        h = self.activation(self.bn1(self.conv1(self.norm1(x_mod))))
+        
+        # Second convolution layer with padding
+        h = F.pad(F.pad(h, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
+        h = self.activation(self.bn2(self.conv2(self.norm2(h))))
+        h = self.drop(h)
+        
+        # Prepare for LSTM: reshape and transpose
+        # Assuming input shape is [batch_size, channels, height, width]
+        batch_size, channels, height, width = h.shape
+        
+        # Reshape to [batch_size, sequence_length, features]
+        # Here, we'll use height as sequence length and flatten width and channels
+        h_reshaped = h.permute(0, 2, 3, 1).contiguous()  # [batch_size, height, width, channels]
+        h_reshaped = h_reshaped.view(batch_size, height, -1)  # [batch_size, height, width*channels]
+        
+        # LSTM processing
+        lstm_out, _ = self.lstm(h_reshaped)
+        
+        # Reshape LSTM output back to match original tensor shape
+        lstm_out = lstm_out.view(batch_size, height, width, -1)
+        lstm_out = lstm_out.permute(0, 3, 1, 2).contiguous()
+        
+        # Residual connection
+        shortcut = self.shortcut(x)
+        
+        return lstm_out + shortcut
 
 
 class Self_attn_conv(nn.Module):
