@@ -616,29 +616,21 @@ class CoordinateAttentionResNetBlock(nn.Module):
         n_groups: int = 1,
         reduction: int = 16
     ):
-        """
-        Coordinate Attention ResNet Block
-        
-        Args:
-            in_channels (int): Number of input channels
-            out_channels (int): Number of output channels
-            activation (str): Activation function type
-            norm (bool): Whether to use group normalization
-            n_groups (int): Number of groups for group normalization
-            reduction (int): Reduction ratio for SE layer
-        """
         super().__init__()
 
+        # Ensure out_channels is an integer
         if isinstance(out_channels, list):
             out_channels = out_channels[0]
+        out_channels = int(out_channels)
         
         self.activation = nn.LeakyReLU(0.3)
         
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=0)
-        self.bn1 = nn.BatchNorm2d(out_channels)
+        # Force float conversion
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=0, dtype=torch.float32)
+        self.bn1 = nn.BatchNorm2d(out_channels, dtype=torch.float32)
         
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3, 3), padding=0)
-        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3, 3), padding=0, dtype=torch.float32)
+        self.bn2 = nn.BatchNorm2d(out_channels, dtype=torch.float32)
         
         self.coord_attention = CoordinateAttention(out_channels, reduction)
         
@@ -646,9 +638,9 @@ class CoordinateAttentionResNetBlock(nn.Module):
         
         if in_channels != out_channels:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1)),
-                nn.BatchNorm2d(out_channels)
-                )
+                nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1), dtype=torch.float32),
+                nn.BatchNorm2d(out_channels, dtype=torch.float32)
+            )
         else:
             self.shortcut = nn.Identity()
         
@@ -660,15 +652,8 @@ class CoordinateAttentionResNetBlock(nn.Module):
             self.norm2 = nn.Identity()
 
     def forward(self, x: torch.Tensor):
-        """
-        Forward pass of Coordinate Attention ResNet Block
-        
-        Args:
-            x (torch.Tensor): Input tensor
-        
-        Returns:
-            torch.Tensor: Output tensor after CA-ResNet block processing
-        """
+        # Ensure input is float32
+        x = x.float()
         
         # First convolution layer with padding
         x_mod = F.pad(F.pad(x, (0, 0, 1, 1), 'reflect'), (1, 1, 0, 0), 'circular')
@@ -684,7 +669,6 @@ class CoordinateAttentionResNetBlock(nn.Module):
         h = self.drop(h)
         
         return h + self.shortcut(x)
-
 
 
 class Self_attn_conv(nn.Module):
