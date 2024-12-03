@@ -202,13 +202,13 @@ class GlobalContextBlock(nn.Module):
         self.reduced_channels = max(1, int(in_channels * reduction_ratio))
         
         # Context modeling components
-        self.channel_attention = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),  # Global Average Pooling
-            nn.Conv2d(in_channels, self.reduced_channels, kernel_size=1),
-            nn.LeakyReLU(0.3),
-            nn.Conv2d(self.reduced_channels, in_channels, kernel_size=1),
-            nn.Sigmoid()
-        )
+        # self.channel_attention = nn.Sequential(
+        #     nn.AdaptiveAvgPool2d(1),  # Global Average Pooling
+        #     nn.Conv2d(in_channels, self.reduced_channels, kernel_size=1),
+        #     nn.LeakyReLU(0.3),
+        #     nn.Conv2d(self.reduced_channels, in_channels, kernel_size=1),
+        #     nn.Sigmoid()
+        # )
         
         # Spatial context modeling
         self.spatial_context = nn.Sequential(
@@ -250,16 +250,17 @@ class GlobalContextBlock(nn.Module):
         residual = x
         
         # Channel-wise global context
-        channel_att = self.channel_attention(x)
-        x_channel_weighted = x * channel_att
+        # channel_att = self.channel_attention(x)
+        # x_channel_weighted = x * channel_att
         
         # Spatial global context
         spatial_att = self.spatial_context(x)
         x_spatial_weighted = x * spatial_att
         
         # Combine global contexts
-        x_global_context = x_channel_weighted + x_spatial_weighted
-        
+        # x_global_context = x_channel_weighted + x_spatial_weighted
+        x_global_context = x_spatial_weighted
+
         # First convolution layer with padding
         x_mod = F.pad(F.pad(x_global_context,(0,0,1,1),'reflect'),(1,1,0,0),'circular')
         h = self.activation(self.bn1(self.conv1(self.norm1(x_mod))))
