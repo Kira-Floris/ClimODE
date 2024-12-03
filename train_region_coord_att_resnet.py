@@ -234,10 +234,11 @@ for epoch in range(args.niters):
         "learning_rate": lr_val
     })
 
-    if val_loss < best_loss:
-        best_loss = val_loss
-        best_epoch = epoch
-        print("Saving Best Model")
-        torch.save(model.state_dict(),str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + str(epoch) + ".pt")
+    # if val_loss < best_loss:
+    #     best_loss = val_loss
+    #     best_epoch = epoch
+    #     print("Saving Best Model")
+    #     torch.save(model.state_dict(),str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + str(epoch) + ".pt")
+    torch.save(model.state_dict(),str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + str(epoch) + ".pt")
 
 wandb.finish()
