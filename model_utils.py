@@ -580,31 +580,31 @@ class CoordinateAttention(nn.Module):
     def __init__(self, in_channels: int, reduction: int = 16):
         super().__init__()
         self.reduction = reduction
+        reduced_channels = max(1, in_channels // reduction)  # Ensure reduced channels are at least 1
         
         # Channel attention for height
         self.fc_h = nn.Sequential(
-            nn.AdaptiveAvgPool2d((1, None)),  # Global Average Pooling along height
-            nn.Conv2d(in_channels, in_channels // reduction, kernel_size=1),
+            nn.AdaptiveAvgPool2d((1, None)),
+            nn.Conv2d(in_channels, reduced_channels, kernel_size=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels // reduction, in_channels, kernel_size=1),
+            nn.Conv2d(reduced_channels, in_channels, kernel_size=1),
             nn.Sigmoid()
         )
         
         # Channel attention for width
         self.fc_w = nn.Sequential(
-            nn.AdaptiveAvgPool2d((None, 1)),  # Global Average Pooling along width
-            nn.Conv2d(in_channels, in_channels // reduction, kernel_size=1),
+            nn.AdaptiveAvgPool2d((None, 1)),
+            nn.Conv2d(in_channels, reduced_channels, kernel_size=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(in_channels // reduction, in_channels, kernel_size=1),
+            nn.Conv2d(reduced_channels, in_channels, kernel_size=1),
             nn.Sigmoid()
         )
 
     def forward(self, x: torch.Tensor):
-        # Apply coordinate attention
         att_h = self.fc_h(x)
         att_w = self.fc_w(x)
-        
-        return x * att_h * att_w  # Element-wise multiplication
+        return x * att_h * att_w
+    
 
 class CoordinateAttentionResNetBlock(nn.Module):
     def __init__(
