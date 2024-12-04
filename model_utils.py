@@ -4,6 +4,31 @@ import torch.nn.functional as F
 from typing import List, Optional, Tuple, Union
 from utils import *
 
+import shutil
+
+def get_free_space_gb(path='/kaggle/working'):
+    """
+    Get free space in GB for the specified path.
+    
+    Args:
+        path (str, optional): Path to check. Defaults to '/kaggle/working'.
+    
+    Returns:
+        float: Free space in GB
+    """
+    try:
+        # Get disk usage statistics
+        total, used, free = shutil.disk_usage(path)
+        
+        # Convert free space to GB
+        free_gb = free / (1024**3)
+        
+        return round(free_gb, 2)
+    
+    except Exception as e:
+        print(f"Error checking disk space: {e}")
+        return None
+
 class boundarypad(nn.Module):
     def __init__(self):
         super().__init__()
