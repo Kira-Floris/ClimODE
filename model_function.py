@@ -8,6 +8,31 @@ from model_utils import *
 from utils import *
 from torchdiffeq import odeint as odeint
 
+import shutil
+
+def get_free_space_gb(path='/kaggle/working'):
+    """
+    Get free space in GB for the specified path.
+    
+    Args:
+        path (str, optional): Path to check. Defaults to '/kaggle/working'.
+    
+    Returns:
+        float: Free space in GB
+    """
+    try:
+        # Get disk usage statistics
+        total, used, free = shutil.disk_usage(path)
+        
+        # Convert free space to GB
+        free_gb = free / (1024**3)
+        
+        return round(free_gb, 2)
+    
+    except Exception as e:
+        print(f"Error checking disk space: {e}")
+        return None
+
 
 class Optim_velocity(nn.Module):
     def __init__(self,num_years,H,W):
