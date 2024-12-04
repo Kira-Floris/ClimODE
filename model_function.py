@@ -1283,12 +1283,14 @@ class Climate_CNNLSTM_2D(nn.Module):
         self.layer_cnn = nn.ModuleList(layers_cnn)
         self.activation_cnn = nn.ModuleList(activation_fns)
 
-    def make_layer(self,block,in_channels,out_channels,reps):
+    def make_layer(self, block, in_channels, out_channels, hidden_size, reps):
         layers = []
-        layers.append(block(in_channels,out_channels))
+        # Add hidden_size to the first block creation
+        layers.append(block(in_channels, out_channels, hidden_size))
         self.inplanes = out_channels
         for i in range(1, reps):  
-              layers.append(block(out_channels, out_channels))
+            # Add hidden_size to subsequent block creations
+            layers.append(block(out_channels, out_channels, hidden_size))
 
         return nn.Sequential(*layers)
 
