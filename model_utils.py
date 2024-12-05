@@ -274,6 +274,181 @@ class GlobalContextBlock(nn.Module):
         return h + self.shortcut(residual)
 
 
+class MBConvBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        activation: str = "gelu",
+        norm: bool = False,
+        n_groups: int = 1,
+        reduction: int = 16
+    ):
+        """
+        Mobile Inverted Bottleneck Block with Squeeze-and-Excitation
+        
+        Args:
+            in_channels (int): Number of input channels
+            out_channels (int): Number of output channels
+            activation (str): Activation function type
+            norm (bool): Whether to use group normalization
+            n_groups (int): Number of groups for group normalization
+            reduction (int): Reduction ratio for SE layer
+        """
+        super().__init__()
+        
+        # Matching activation style from SEResNetBlock
+        self.activation = nn.LeakyReLU(0.3)
+        
+        # Expansion convolution with padding matching SEResNetBlock
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=0)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        
+        # Second convolution matching SEResNetBlock
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3, 3), padding=0)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        
+        # Squeeze-and-Excitation Layer
+        self.se_layer = SELayer(out_channels, reduction)
+        
+        # Dropout matching SEResNetBlock
+        self.drop = nn.Dropout(p=0.2)
+        
+        # Shortcut connection
+        if in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1)),
+                nn.BatchNorm2d(out_channels)
+            )
+        else:
+            self.shortcut = nn.Identity()
+        
+        # Normalization handling
+        if norm:
+            self.norm1 = nn.GroupNorm(n_groups, in_channels)
+            self.norm2 = nn.GroupNorm(n_groups, out_channels)
+        else:
+            self.norm1 = nn.Identity()
+            self.norm2 = nn.Identity()
+
+    def forward(self, x: torch.Tensor):
+        """
+        Forward pass of MBConv Block
+        
+        Args:
+            x (torch.Tensor): Input tensor
+        
+        Returns:
+            torch.Tensor: Output tensor after MBConv block processing
+        """
+        # Circular and reflect padding matching SEResNetBlock
+        x_mod = F.pad(F.pad(x, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
+        
+        # First convolution path
+        h = self.activation(self.bn1(self.conv1(self.norm1(x_mod))))
+        
+        # Second convolution path with similar padding
+        h = F.pad(F.pad(h, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
+        h = self.activation(self.bn2(self.conv2(self.norm2(h))))
+        
+        # Squeeze-and-Excitation
+        h = self.se_layer(h)
+        
+        # Dropout
+        h = self.drop(h)
+        
+        # Residual connection
+        return h + self.shortcut(x)
+
+class EfficientNet(nn.Module):
+    def __init__(
+        self,
+        in_channels: int = 3,
+        out_channels: int = 10,
+        activation: str = "gelu",
+        norm: bool = False,
+        n_groups: int = 1,
+        reduction: int = 16
+    ):
+        """
+        EfficientNet-like Architecture
+        
+        Args:
+            in_channels (int): Number of input image channels
+            num_classes (int): Number of output classes
+            activation (str): Activation function type
+            norm (bool): Whether to use group normalization
+            n_groups (int): Number of groups for group normalization
+            reduction (int): Reduction ratio for SE layer
+        """
+        super().__init__()
+        
+        # Initial convolution matching block-level padding and conv style
+        self.stem = nn.Sequential(
+            nn.Conv2d(in_channels, 32, kernel_size=(3, 3), padding=0),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(0.3)
+        )
+        
+        # Network configuration
+        stages_config = [
+            (32, 64),
+            (64, 128),
+            (128, 256),
+            (256, 512)
+        ]
+        
+        # Create stages using MBConvBlock
+        self.stages = nn.ModuleList()
+        for in_ch, out_ch in stages_config:
+            self.stages.append(
+                MBConvBlock(
+                    in_channels=in_ch, 
+                    out_channels=out_ch,
+                    activation=activation,
+                    norm=norm,
+                    n_groups=n_groups,
+                    reduction=reduction
+                )
+            )
+        
+        # Global pooling and classification head
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.classifier = nn.Sequential(
+            nn.Dropout(p=0.2),
+            nn.Linear(512, out_channels)
+        )
+    
+    def forward(self, x: torch.Tensor):
+        """
+        Forward pass of EfficientNet-like model
+        
+        Args:
+            x (torch.Tensor): Input image tensor
+        
+        Returns:
+            torch.Tensor: Class logits
+        """
+        # Matching circular and reflect padding from block-level implementation
+        x = F.pad(F.pad(x, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
+        
+        # Initial convolution
+        x = self.stem(x)
+        
+        # Pass through stages
+        for stage in self.stages:
+            x = stage(x)
+        
+        # Global pooling
+        x = self.global_pool(x)
+        x = x.flatten(1)
+        
+        # Classification
+        x = self.classifier(x)
+        
+        return x
+
+
 
 
 class Self_attn_conv(nn.Module):

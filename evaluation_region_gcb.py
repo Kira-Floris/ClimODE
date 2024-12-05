@@ -37,6 +37,7 @@ parser.add_argument("--model_path", type=str, help="Path to Model")
 args = parser.parse_args()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Device: {'cuda' if torch.cuda.is_available() else 'cpu'}")
 cwd = os.getcwd()
 train_time_scale= slice('2006','2016')
 val_time_scale = slice('2016','2016')
