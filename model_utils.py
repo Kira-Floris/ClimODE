@@ -341,15 +341,18 @@ class MBConvBlock(nn.Module):
         Returns:
             torch.Tensor: Output tensor after MBConv block processing
         """
-        # Circular and reflect padding matching SEResNetBlock
-        x_mod = F.pad(F.pad(x, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
+        # Single padding call with combined reflect and circular padding
+        # Pad order: left, right, top, bottom
+        x_mod = F.pad(x, (1,1,1,1), mode='reflect')
+        x_mod = F.pad(x_mod, (0,0,0,0), mode='circular')
         
         # First convolution path
         h = self.activation(self.bn1(self.conv1(self.norm1(x_mod))))
         
         # Second convolution path with similar padding
-        h = F.pad(F.pad(h, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
-        h = self.activation(self.bn2(self.conv2(self.norm2(h))))
+        h_mod = F.pad(h, (1,1,1,1), mode='reflect')
+        h_mod = F.pad(h_mod, (0,0,0,0), mode='circular')
+        h = self.activation(self.bn2(self.conv2(self.norm2(h_mod))))
         
         # Squeeze-and-Excitation
         h = self.se_layer(h)
@@ -429,8 +432,9 @@ class EfficientNet(nn.Module):
         Returns:
             torch.Tensor: Class logits
         """
-        # Matching circular and reflect padding from block-level implementation
-        x = F.pad(F.pad(x, (0,0,1,1), 'reflect'), (1,1,0,0), 'circular')
+        # Padding with a single F.pad() call
+        x = F.pad(x, (1,1,1,1), mode='reflect')
+        x = F.pad(x, (0,0,0,0), mode='circular')
         
         # Initial convolution
         x = self.stem(x)
