@@ -211,6 +211,93 @@ class SEResNetBlock(nn.Module):
         h = self.drop(h)
         
         return h + self.shortcut(x)
+    
+class GlobalContextBlock(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        reduction_ratio: float = 0.5,
+        activation: str = "gelu",
+        norm: bool = False,
+        n_groups: int = 1,
+    ):
+        super().__init__()
+        # Compute the reduced channel dimension
+        self.reduced_channels = max(1, int(in_channels * reduction_ratio))
+        
+        # Context modeling components
+        # self.channel_attention = nn.Sequential(
+        #     nn.AdaptiveAvgPool2d(1),  # Global Average Pooling
+        #     nn.Conv2d(in_channels, self.reduced_channels, kernel_size=1),
+        #     nn.LeakyReLU(0.3),
+        #     nn.Conv2d(self.reduced_channels, in_channels, kernel_size=1),
+        #     nn.Sigmoid()
+        # )
+        
+        # Spatial context modeling
+        self.spatial_context = nn.Sequential(
+            nn.Conv2d(in_channels, self.reduced_channels, kernel_size=1),
+            nn.LeakyReLU(0.3),
+            nn.Conv2d(self.reduced_channels, 1, kernel_size=1),
+            nn.Sigmoid()
+        )
+        
+        # Main transformation paths
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=(3, 3), padding=0)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=(3, 3), padding=0)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        
+        # Dropout and activation
+        self.activation = nn.LeakyReLU(0.3)
+        self.drop = nn.Dropout(p=0.2)
+        
+        # Shortcut connection
+        if in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size=(1, 1)),
+                nn.BatchNorm2d(out_channels)
+            )
+        else:
+            self.shortcut = nn.Identity()
+        
+        # Optional normalization
+        if norm:
+            self.norm1 = nn.GroupNorm(n_groups, in_channels)
+            self.norm2 = nn.GroupNorm(n_groups, out_channels)
+        else:
+            self.norm1 = nn.Identity()
+            self.norm2 = nn.Identity()
+
+    def forward(self, x: torch.Tensor):
+        # Preserve input for residual connection
+        residual = x
+        
+        # Channel-wise global context
+        # channel_att = self.channel_attention(x)
+        # x_channel_weighted = x * channel_att
+        
+        # Spatial global context
+        spatial_att = self.spatial_context(x)
+        x_spatial_weighted = x * spatial_att
+        
+        # Combine global contexts
+        # x_global_context = x_channel_weighted + x_spatial_weighted
+        x_global_context = x_spatial_weighted
+
+        # First convolution layer with padding
+        x_mod = F.pad(F.pad(x_global_context,(0,0,1,1),'reflect'),(1,1,0,0),'circular')
+        h = self.activation(self.bn1(self.conv1(self.norm1(x_mod))))
+        
+        # Second convolution layer with padding
+        h = F.pad(F.pad(h,(0,0,1,1),'reflect'),(1,1,0,0),'circular')
+        h = self.activation(self.bn2(self.conv2(self.norm2(h))))
+        h = self.drop(h)
+        
+        # Residual connection
+        return h + self.shortcut(residual)
+
 
 
 
@@ -238,5 +325,3 @@ class Self_attn_conv(nn.Module):
         o = torch.bmm(v, beta.transpose(1,2))
         o = self.post_map(o.view(-1,self.out_ch,size[-2],size[-1]).contiguous())
         return o
-
-

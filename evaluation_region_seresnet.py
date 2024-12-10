@@ -87,7 +87,7 @@ num_years  = 2
 
 vel_test= torch.from_numpy(np.load('test_10year_2day_mm_'+str(args.region)+'_vel.npy'))
 # model = torch.load(str(cwd) + args.model_path,map_location=torch.device('cpu')).to(device)
-model = ClimODE_uncertain_region(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False)
+model = ClimODE_uncertain_region_SEResNet(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False)
 model.load_state_dict(torch.load(str(cwd) + args.model_path, map_location=torch.device('cpu')))
 model.to(device)
 # print(model)
@@ -212,7 +212,7 @@ header = ["Lead Time (hours)", "Observable", "Mean RMSD", "Std RMSD", "Mean ACC"
 import csv
 
 # Write results to CSV file
-with open("./evaluations/evaluation_metrics_baseline.csv", mode="w", newline="") as file:
+with open("./evaluations/evaluation_metrics_seresnet.csv", mode="w", newline="") as file:
     writer = csv.writer(file)
     writer.writerow(header)
     writer.writerows(results)
