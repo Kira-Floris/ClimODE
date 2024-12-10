@@ -118,7 +118,7 @@ time_idx = DataLoader(time_idx_steps[2:],batch_size=args.batch_size,shuffle=Fals
 #Model declaration
 num_years = len(range(2006,2016))
 # model = Climate_encoder_free_uncertain_region(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False).to(device)
-model = ClimODE_uncertain_region_GCB(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False).to(device)
+model = ClimODE_uncertain_region_CARM(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False).to(device)
 # model = torch.compile(model, mode='default')
 #model.apply(weights_init_uniform_rule)
 param = count_parameters(model)
@@ -237,7 +237,8 @@ for epoch in range(args.niters):
     if val_loss < best_loss:
         best_loss = val_loss
         best_epoch = epoch
-        print("Saving Best Model")
-        torch.save(model.state_dict(),str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + str(epoch) + ".pt")
+        print(f"Saving Best Model: {epoch}\t Memory Space: {get_free_space_gb()}")
+        torch.save(model.state_dict(),str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + ".pt")
+    # torch.save(model.state_dict(),str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + str(epoch) + ".pt")
 
 wandb.finish()

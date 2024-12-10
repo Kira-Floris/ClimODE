@@ -217,4 +217,4 @@ with open("./evaluations/evaluation_metrics_seresnet.csv", mode="w", newline="")
     writer.writerow(header)
     writer.writerows(results)
 
-print("Results have been saved to evaluation_metrics.csv")
+print("Results have been saved to evaluations/evaluation_metrics_seresnet.csv")
