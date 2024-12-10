@@ -1,4 +1,6 @@
 era5_data/
 __pycache__/
+tests/
+
 *.npy
 *.csv

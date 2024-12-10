@@ -237,6 +237,8 @@ for epoch in range(args.niters):
     if val_loss < best_loss:
         best_loss = val_loss
         best_epoch = epoch
-        torch.save(model.state_dict(),str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + str(epoch) + ".pt")
+        print(f"Saving Best Model: {epoch}\tMemory Space: {get_free_space_gb()}")
+        torch.save(model.state_dict(),str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + ".pt")
+    # torch.save(model.state_dict(),str(cwd) + "/Models/" + "ClimODE_region_"+str(args.region)+"_"+args.solver+"_"+str(args.spectral)+"_model_" + ".pt")
 
 wandb.finish()
