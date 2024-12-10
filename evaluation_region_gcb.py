@@ -37,6 +37,7 @@ parser.add_argument("--model_path", type=str, help="Path to Model")
 args = parser.parse_args()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Device: {'cuda' if torch.cuda.is_available() else 'cpu'}")
 cwd = os.getcwd()
 train_time_scale= slice('2006','2016')
 val_time_scale = slice('2016','2016')
@@ -87,7 +88,7 @@ num_years  = 2
 
 vel_test= torch.from_numpy(np.load('test_10year_2day_mm_'+str(args.region)+'_vel.npy'))
 # model = torch.load(str(cwd) + args.model_path,map_location=torch.device('cpu')).to(device)
-model = ClimODE_uncertain_region(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False)
+model = ClimODE_uncertain_region_GCB(len(paths_to_data),2,out_types=len(paths_to_data),method=args.solver,use_att=True,use_err=True,use_pos=False)
 model.load_state_dict(torch.load(str(cwd) + args.model_path, map_location=torch.device('cpu')))
 model.to(device)
 # print(model)
