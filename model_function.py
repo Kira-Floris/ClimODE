@@ -312,7 +312,11 @@ class Climate_encoder_free_uncertain(nn.Module):
         return mean,std
 
 
-    def forward(self,T,data,atol=0.1,rtol=0.1):
+    def forward(self, T=None,data=None,atol=0.1,rtol=0.1):
+        if T is None:
+            T = torch.tensor([0.0, 1.0])  # Example time tensor
+        if data is None:
+            data = torch.zeros(1, self.out_ch, 128, 128)
         H,W = self.past_samples.shape[2],self.past_samples.shape[3]
         final_data = torch.cat([self.past_samples ,data.float().view(-1,self.out_ch,H,W)],1)
         init_time = T[0].item()*6
